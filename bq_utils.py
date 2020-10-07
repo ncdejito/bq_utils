@@ -11,7 +11,7 @@ from google.cloud import bigquery
 
 usd_per_tb = 5
 
-def query(table_name, query, dataset = dataset, create_view = True, dry_run = False, verbose = True, return_ = None):
+def query(table_name, query, dataset_id, return_size = False, create_view = False, dry_run = False, verbose = True):
     """
     Read the docs!! https://googleapis.dev/python/bigquery/latest/usage/tables.html
     
@@ -19,6 +19,7 @@ def query(table_name, query, dataset = dataset, create_view = True, dry_run = Fa
         return_ (str): if set to 'job_size', will return processed job size in MB. if set to None, returns nothing
     """
     # configure bq
+    project, dataset = tuple(dataset_id.split('.'))
     client = bigquery.Client(project)
     job_config = bigquery.QueryJobConfig()
     if create_view == True:
@@ -52,23 +53,24 @@ def query(table_name, query, dataset = dataset, create_view = True, dry_run = Fa
         table = client.get_table(client.dataset(dataset).table(table_name))
         if verbose: print('Number of rows: {}'.format(table.num_rows));
 
-    job_size = query_job.total_bytes_processed/1024/1024
+    job_size = query_job.total_bytes_processed/1024/1024/1024/1024
     if verbose:
-        print("This query will process {} MB.".format(job_size));
-        print("This query will process {} dollars.".format(job_size*usd_per_tb));
+        print("This query processes {} MB.".format(job_size*1024*1024));
+        print("This query costs {} dollars.".format(job_size*usd_per_tb));
         print()
-    if return is None:
-        return None
-    else:
+    if return_size:
         return job_size
+    else:
+        return None
 
-def run_sql(filename, dataset = dataset, replace = None, dry_run = False, return_ = None):
+def run_sql(filename, dataset_id = 'tm-geospatial.cholo_scratch', replace = None, dry_run = False, return_size = False):
     '''
     Runs a sql file, affecting BQ dataset, replacing parts of the script
     
     Args
         replace (dict): in the format {'str_to_replace': 'replacement'}
     '''
+    
     with open(filename) as file:
         script = file.read()
     
@@ -80,24 +82,25 @@ def run_sql(filename, dataset = dataset, replace = None, dry_run = False, return
         job_sizes = []
         if re.search('(select)|(from)', snippet, re.IGNORECASE):
             # that should already be the query
-            query = snippet.strip()
+            query_ = snippet.strip()
             # get table name
-            first_line = query.split('\n')[0]
+            first_line = query_.split('\n')[0]
             table_name = first_line[first_line.find(': ')+2:]
             # execute query
             job_size = query(
                 table_name,
-                query,
-                dataset,
-                return_ = return_
+                query_,
+                dataset_id,
+                return_size = True,
+                dry_run = dry_run
             )
             job_sizes.append(job_size)
-    if return_ is None:
-        return None
-    else:
+    if return_size:
         return job_sizes
+    else:
+        return None
             
 
-def how_much(filename):
-    job_sizes = run_sql(filename, dry_run = False, return_ = 'job_size')
-    print("These set of queries will cost {} dollars.".format(sum(job_sizes)*usd_per_tb));
+def how_much(filename, replace = None):
+    job_sizes = run_sql(filename, replace = replace, dry_run = True, return_size = True)
+    print("This set of queries costs {} dollars.".format(sum(job_sizes)*usd_per_tb));
