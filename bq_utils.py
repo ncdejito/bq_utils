@@ -15,7 +15,7 @@ def query(table_name, query, dataset_id, return_size = False, create_view = Fals
     """
     Read the docs!! https://googleapis.dev/python/bigquery/latest/usage/tables.html
     Add service account by using:
-    key_path = "../tkm-project-service-account.json"
+    key_path = "../project-service-account.json"
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(credentials=credentials, project=credentials.project_id,)
 
