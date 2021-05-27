@@ -11,16 +11,21 @@ from google.cloud import bigquery
 
 usd_per_tb = 5
 
-def query(table_name, query, dataset_id, return_size = False, create_view = False, dry_run = False, verbose = True):
+def query(table_name, query, dataset_id, return_size = False, create_view = False, dry_run = False, verbose = True, client = None):
     """
     Read the docs!! https://googleapis.dev/python/bigquery/latest/usage/tables.html
-    
+    Add service account by using:
+    key_path = "../tkm-project-service-account.json"
+    credentials = service_account.Credentials.from_service_account_file(key_path)
+    client = bigquery.Client(credentials=credentials, project=credentials.project_id,)
+
     Args
         return_ (str): if set to 'job_size', will return processed job size in MB. if set to None, returns nothing
     """
     # configure bq
     project, dataset = tuple(dataset_id.split('.'))
-    client = bigquery.Client(project)
+    if client is None:
+        client = bigquery.Client(project)
     job_config = bigquery.QueryJobConfig()
     if create_view == True:
         # delete view if exists
@@ -63,7 +68,7 @@ def query(table_name, query, dataset_id, return_size = False, create_view = Fals
     else:
         return None
 
-def run_sql(filename, dataset_id = 'tm-geospatial.cholo_scratch', replace = None, dry_run = False, return_size = False):
+def run_sql(filename, dataset_id = 'tm-geospatial.cholo_scratch', replace = None, dry_run = False, return_size = False, client = None):
     '''
     Runs a sql file, affecting BQ dataset, replacing parts of the script
     
@@ -92,7 +97,8 @@ def run_sql(filename, dataset_id = 'tm-geospatial.cholo_scratch', replace = None
                 query_,
                 dataset_id,
                 return_size = True,
-                dry_run = dry_run
+                dry_run = dry_run,
+                client = client
             )
             job_sizes.append(job_size)
     if return_size:
